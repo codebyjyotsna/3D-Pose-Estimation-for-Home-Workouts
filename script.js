@@ -1,13 +1,16 @@
+import exerciseLibrary from './exerciseLibrary.js';
+
 const video = document.getElementById('video');
 const canvas = document.getElementById('outputCanvas');
 const ctx = canvas.getContext('2d');
 const output = document.getElementById('output');
+const exerciseSelect = document.getElementById('exerciseSelect');
 
 // Rep Counter Variables
 let repCount = 0;
 let inPosition = false;
 
-// Load the video stream from the webcam
+// Load webcam video
 async function setupCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
@@ -53,6 +56,18 @@ function speakFeedback(message) {
     window.speechSynthesis.speak(speech);
 }
 
+// Calculate angles between three points
+function calculateAngle(p1, p2, p3) {
+    const angle =
+        Math.abs(
+            Math.atan2(p3.y - p2.y, p3.x - p2.x) -
+            Math.atan2(p1.y - p2.y, p1.x - p2.x)
+        ) *
+        (180 / Math.PI);
+
+    return angle > 180 ? 360 - angle : angle;
+}
+
 // Main function to load PoseNet and process video frames
 async function main() {
     const net = await posenet.load();
@@ -75,29 +90,40 @@ async function main() {
         drawKeypoints(pose.keypoints, 0.5, ctx);
         drawSkeleton(pose.keypoints, 0.5, ctx);
 
-        // Example feedback and rep counting for squats
-        const leftKnee = pose.keypoints.find((kp) => kp.part === 'leftKnee');
-        const leftHip = pose.keypoints.find((kp) => kp.part === 'leftHip');
-        const leftAnkle = pose.keypoints.find((kp) => kp.part === 'leftAnkle');
+        const selectedExercise = exerciseLibrary[exerciseSelect.value];
+        const joint = selectedExercise.joint;
 
-        if (leftKnee.score > 0.5 && leftHip.score > 0.5 && leftAnkle.score > 0.5) {
-            const kneeAngle = Math.abs(
-                Math.atan2(leftKnee.position.y - leftHip.position.y, leftKnee.position.x - leftHip.position.x) -
-                Math.atan2(leftAnkle.position.y - leftKnee.position.y, leftAnkle.position.x - leftKnee.position.x)
-            ) * (180 / Math.PI);
+        const jointKeypoints = {
+            knee: {
+                point1: pose.keypoints.find((kp) => kp.part === 'leftHip'),
+                point2: pose.keypoints.find((kp) => kp.part === 'leftKnee'),
+                point3: pose.keypoints.find((kp) => kp.part === 'leftAnkle'),
+            },
+            elbow: {
+                point1: pose.keypoints.find((kp) => kp.part === 'leftShoulder'),
+                point2: pose.keypoints.find((kp) => kp.part === 'leftElbow'),
+                point3: pose.keypoints.find((kp) => kp.part === 'leftWrist'),
+            },
+        };
 
-            // Check if the user is in the "down" position
-            if (kneeAngle < 90 && !inPosition) {
+        const points = jointKeypoints[joint];
+        if (points.point1.score > 0.5 && points.point2.score > 0.5 && points.point3.score > 0.5) {
+            const angle = calculateAngle(
+                points.point1.position,
+                points.point2.position,
+                points.point3.position
+            );
+
+            if (angle < selectedExercise.downAngle && !inPosition) {
                 inPosition = true;
-                speakFeedback('Good! Now stand up.');
+                speakFeedback(selectedExercise.feedback.down);
             }
 
-            // Check if the user has returned to the "up" position
-            if (kneeAngle > 160 && inPosition) {
+            if (angle > selectedExercise.upAngle && inPosition) {
                 inPosition = false;
                 repCount++;
                 output.innerText = `Reps: ${repCount}`;
-                speakFeedback(`Great! That's rep number ${repCount}.`);
+                speakFeedback(selectedExercise.feedback.up);
             }
         }
 
