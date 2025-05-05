@@ -3,6 +3,10 @@ const canvas = document.getElementById('outputCanvas');
 const ctx = canvas.getContext('2d');
 const output = document.getElementById('output');
 
+// Rep Counter Variables
+let repCount = 0;
+let inPosition = false;
+
 // Load the video stream from the webcam
 async function setupCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -42,6 +46,13 @@ function drawSkeleton(keypoints, minConfidence, ctx) {
     });
 }
 
+// Voice feedback function
+function speakFeedback(message) {
+    const speech = new SpeechSynthesisUtterance(message);
+    speech.lang = 'en-US';
+    window.speechSynthesis.speak(speech);
+}
+
 // Main function to load PoseNet and process video frames
 async function main() {
     const net = await posenet.load();
@@ -64,7 +75,7 @@ async function main() {
         drawKeypoints(pose.keypoints, 0.5, ctx);
         drawSkeleton(pose.keypoints, 0.5, ctx);
 
-        // Example feedback for squats
+        // Example feedback and rep counting for squats
         const leftKnee = pose.keypoints.find((kp) => kp.part === 'leftKnee');
         const leftHip = pose.keypoints.find((kp) => kp.part === 'leftHip');
         const leftAnkle = pose.keypoints.find((kp) => kp.part === 'leftAnkle');
@@ -75,12 +86,18 @@ async function main() {
                 Math.atan2(leftAnkle.position.y - leftKnee.position.y, leftAnkle.position.x - leftKnee.position.x)
             ) * (180 / Math.PI);
 
-            if (kneeAngle > 160) {
-                output.innerText = 'Great squat form!';
-            } else if (kneeAngle < 90) {
-                output.innerText = 'Lower your hips for a deeper squat.';
-            } else {
-                output.innerText = 'Adjust your squat form.';
+            // Check if the user is in the "down" position
+            if (kneeAngle < 90 && !inPosition) {
+                inPosition = true;
+                speakFeedback('Good! Now stand up.');
+            }
+
+            // Check if the user has returned to the "up" position
+            if (kneeAngle > 160 && inPosition) {
+                inPosition = false;
+                repCount++;
+                output.innerText = `Reps: ${repCount}`;
+                speakFeedback(`Great! That's rep number ${repCount}.`);
             }
         }
 
