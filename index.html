@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pose Estimation for Workouts</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+    <style>
+        canvas {
+            position: absolute;
+        }
+        #output {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <video id="video" playsinline autoplay></video>
+    <canvas id="outputCanvas"></canvas>
+    <div id="output">Loading...</div>
+    <script src="script.js"></script>
+</body>
+</html>
